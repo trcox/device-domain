@@ -1,0 +1,4 @@
+The following open source projects are referenced by Device Store:
+
+Junit (EPL 1.0) - http://junit.org/junit4/
+http://junit.org/junit4/license.html
