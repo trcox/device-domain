@@ -22,20 +22,20 @@
 	<modelVersion>4.0.0</modelVersion>
 	<groupId>org.edgexfoundry</groupId>
 	<artifactId>device-domain</artifactId>
-	<version>0.2.0-SNAPSHOT</version>
+	<version>0.5.0-SNAPSHOT</version>
 	<name>EdgeX Foundry reusable domain and stores</name>
 	<description>EdgeX Foundry reusable domain and store/caches for SDK and resulting device services</description>
 
 	<properties>
-		<core-domain.version>0.2.0-SNAPSHOT</core-domain.version>
-		<core-test.version>0.2.0-SNAPSHOT</core-test.version>
-		<core-data-client.version>0.2.0-SNAPSHOT</core-data-client.version>
-		<core-metadata-client.version>0.2.0-SNAPSHOT</core-metadata-client.version>
-		<core-exception.version>0.2.0-SNAPSHOT</core-exception.version>
+		<core-domain.version>0.5.0-SNAPSHOT</core-domain.version>
+		<core-test.version>0.5.0-SNAPSHOT</core-test.version>
+		<core-data-client.version>0.5.0-SNAPSHOT</core-data-client.version>
+		<core-metadata-client.version>0.5.0-SNAPSHOT</core-metadata-client.version>
+		<core-exception.version>0.5.0-SNAPSHOT</core-exception.version>
 		<version>${spring-test.version}</version>
 		<gson.version>2.3.1</gson.version>
 		<spring-test.version>4.2.7.RELEASE</spring-test.version>
-		<support-logging-client.version>0.2.0-SNAPSHOT</support-logging-client.version>
+		<support-logging-client.version>0.5.0-SNAPSHOT</support-logging-client.version>
 		<junit.version>4.11</junit.version>
 		<maven.compiler.plugin.version>3.6.1</maven.compiler.plugin.version>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
