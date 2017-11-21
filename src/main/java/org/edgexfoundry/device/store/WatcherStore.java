@@ -18,7 +18,6 @@
 
 package org.edgexfoundry.device.store;
 
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -54,16 +53,14 @@ public class WatcherStore {
   @Autowired
   private DeviceServiceClient serviceClient;
 
-  private List<ProvisionWatcher> watchersList = new ArrayList<ProvisionWatcher>();
-
   private Map<String, ProvisionWatcher> watchers = new HashMap<>();
 
   public void setWatchers(Map<String, ProvisionWatcher> watchers) {
     this.watchers = watchers;
   }
 
-  public List<ProvisionWatcher> getWatchers() {
-    return watchersList;
+  public Map<String, ProvisionWatcher> getWatchers() {
+    return watchers;
   }
 
   public boolean add(String provisionWatcherId) {
@@ -78,13 +75,15 @@ public class WatcherStore {
       logger.error("Cannot add null watcher to the watcher store");
       return false;
     }
-    if (watcher.getId() == null && persistProvisionWatcher(watcher)) {
-      watchers.put(watcher.getName(), watcher);
-      return true;
+    if (watcher.getId() == null) {
+      if (persistProvisionWatcher(watcher)) {
+        watchers.put(watcher.getName(), watcher);
+        return true;
+      }
     }
+    logger.error("Cannot add un-persisted watcher to the watcher store");
     return false;
   }
-
 
   public boolean remove(String provisionWatcherId) {
     ProvisionWatcher watcher = watchers.values().stream()
@@ -106,7 +105,10 @@ public class WatcherStore {
 
   public boolean update(ProvisionWatcher provisionWatcher) {
     remove(provisionWatcher);
-    return add(provisionWatcher);
+    if (provisionWatcher.getId() == null)
+      return add(provisionWatcher);
+    watchers.put(provisionWatcher.getName(), provisionWatcher);
+    return true;
   }
 
   public void initialize(String deviceServiceId, BaseProvisionWatcherConfiguration configuration) {
