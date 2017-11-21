@@ -45,6 +45,7 @@ import org.springframework.stereotype.Repository;
 // TODO - Tyler - what happens if a profile is removed. How does this get cleaned out??
 /**
  * Cache of value descriptors, command and objects based on whats in the DS profile
+ * 
  * @author Jim White
  *
  */
@@ -61,7 +62,7 @@ public class ProfileStore {
 
   private List<ValueDescriptor> valueDescriptors = new ArrayList<>();
 
-  //TODO - wow, make these simpler, separate objects
+  // TODO - wow, make these simpler, separate objects - jpw
   // map (key of device name) to cache of each device's resources keyed by resource name
   // mapped to resource operations arrays keyed by get or put operation
   private Map<String, Map<String, Map<String, List<ResourceOperation>>>> commands = new HashMap<>();
@@ -87,21 +88,25 @@ public class ProfileStore {
   }
 
   public void addDevice(Device device) {
-    completeProfile(device);
-    List<ValueDescriptor> descriptors = retrieveAllValueDescriptors();
-    List<String> usedDescriptors = retrieveUsedDescriptors(device);
+    if (completeProfile(device)) {
+      List<ValueDescriptor> descriptors = retrieveAllValueDescriptors();
+      List<String> usedDescriptors = retrieveUsedDescriptors(device);
 
-    Map<String, Map<String, List<ResourceOperation>>> deviceOperations = new HashMap<>();
-    List<ResourceOperation> ops = new ArrayList<>();
-    retreiveOperations(device, deviceOperations, ops);
+      Map<String, Map<String, List<ResourceOperation>>> deviceOperations = new HashMap<>();
+      List<ResourceOperation> ops = new ArrayList<>();
+      retreiveOperations(device, deviceOperations, ops);
 
-    Map<String, ServiceObject> deviceObjects = new HashMap<>();
-    buildDeviceObjectsMap(device, deviceObjects, deviceOperations, ops);
+      Map<String, ServiceObject> deviceObjects = new HashMap<>();
+      buildDeviceObjectsMap(device, deviceObjects, deviceOperations, ops);
 
-    objects.put(device.getName(), deviceObjects);
-    commands.put(device.getName(), deviceOperations);
+      objects.put(device.getName(), deviceObjects);
+      commands.put(device.getName(), deviceOperations);
 
-    collectValueDescriptors(device, ops, descriptors, usedDescriptors);
+      collectValueDescriptors(device, ops, descriptors, usedDescriptors);
+    } else {
+      logger.error(
+          "Device is not associated to a profile and cannot therefore be added to the caches");
+    }
   }
 
   public void updateDevice(Device device) {
@@ -141,35 +146,41 @@ public class ProfileStore {
 
   private List<String> retrieveUsedDescriptors(Device device) {
     List<String> usedDescriptors = new ArrayList<>();
-    for (Command command : device.getProfile().getCommands()) {
-      usedDescriptors.addAll(command.associatedValueDescriptors());
+    if (device.getProfile() != null && device.getProfile().getCommands() != null) {
+      for (Command command : device.getProfile().getCommands()) {
+        usedDescriptors.addAll(command.associatedValueDescriptors());
+      }
     }
     return usedDescriptors;
   }
 
-  private void completeProfile(Device device) {
-    if (device.getProfile().getDeviceResources() == null) {
-      DeviceProfile profile =
-          deviceProfileClient.deviceProfileForName(device.getProfile().getName());
-      device.setProfile(profile);
+  private boolean completeProfile(Device device) {
+    if (device.getProfile() != null) {
+      if (device.getProfile().getDeviceResources() == null) {
+        DeviceProfile profile =
+            deviceProfileClient.deviceProfileForName(device.getProfile().getName());
+        device.setProfile(profile);
+      }
+      return true;
     }
+    return false;
   }
 
   private void retreiveOperations(Device device,
       Map<String, Map<String, List<ResourceOperation>>> deviceOperations,
       List<ResourceOperation> ops) {
-    for (ProfileResource resource : device.getProfile().getResources()) {
-      Map<String, List<ResourceOperation>> operations = new HashMap<>();
-      operations.put("get", resource.getGet());
-      operations.put("set", resource.getSet());
-      deviceOperations.put(resource.getName().toLowerCase(), operations);
-
-      if (resource.getGet() != null) {
-        ops.addAll(resource.getGet());
-      }
-
-      if (resource.getSet() != null) {
-        ops.addAll(resource.getSet());
+    if (device.getProfile() != null && device.getProfile().getResources() != null) {
+      for (ProfileResource resource : device.getProfile().getResources()) {
+        Map<String, List<ResourceOperation>> operations = new HashMap<>();
+        operations.put("get", resource.getGet());
+        operations.put("set", resource.getSet());
+        deviceOperations.put(resource.getName().toLowerCase(), operations);
+        if (resource.getGet() != null) {
+          ops.addAll(resource.getGet());
+        }
+        if (resource.getSet() != null) {
+          ops.addAll(resource.getSet());
+        }
       }
     }
   }
@@ -192,12 +203,13 @@ public class ProfileStore {
         descriptor = createDescriptor(op.getParameter(), object);
       }
 
-      valueDescriptors.add(descriptor);
+      if (!valueDescriptors.contains(descriptor))
+        valueDescriptors.add(descriptor);
       descriptors.add(descriptor);
     }
   }
 
-  // TODO need to simplify
+  // TODO need to simplify - jpw
   private void buildDeviceObjectsMap(Device device, Map<String, ServiceObject> deviceObjects,
       Map<String, Map<String, List<ResourceOperation>>> deviceOperations,
       List<ResourceOperation> ops) {

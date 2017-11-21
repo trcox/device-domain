@@ -22,7 +22,6 @@ import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 
-import org.edgexfoundry.device.domain.configuration.ScheduleConfiguration;
 import org.edgexfoundry.test.category.RequiresSpring;
 import org.junit.Before;
 import org.junit.Test;
@@ -67,6 +66,17 @@ public class ScheduleConfigurationTest {
     assertArrayEquals("Names not read correctly", TEST_END, config.getEnds());
     assertArrayEquals("Names not read correctly", TEST_CRON, config.getCrons());
     assertArrayEquals("Names not read correctly", TEST_RUNONCE, config.getRunOnces());
+  }
+
+  @Test
+  public void testNullChecks() {
+    ScheduleConfiguration config = new ScheduleConfiguration();
+    assertEquals("Crons not empty", 0, config.getCrons().length);
+    assertEquals("Ends not empty", 0, config.getEnds().length);
+    assertEquals("Frequencys not empty", 0, config.getFrequencys().length);
+    assertEquals("Names not empty", 0, config.getNames().length);
+    assertEquals("RunOnces not empty", 0, config.getRunOnces().length);
+    assertEquals("Starts not empty", 0, config.getStarts().length);
   }
 
   @Configuration
