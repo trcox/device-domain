@@ -43,10 +43,10 @@ import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 @Category(RequiresSpring.class)
 public class ScheduleEventConfigurationTest {
 
-  public static final String[] TEST_NAMES = {"test-service-discovery","test-service-cleanup"};
-  public static final String[] TEST_PATHS = {"/api/v1/discovery","/api/v1/cleanup"};
-  private static final String[] TEST_SERVICES = {"test-service1","test-service2"};
-  private static final String[] TEST_SCHEDULES = {"test-interval1","test-interval2"};
+  public static final String[] TEST_NAMES = {"test-service-discovery", "test-service-cleanup"};
+  public static final String[] TEST_PATHS = {"/api/v1/discovery", "/api/v1/cleanup"};
+  private static final String[] TEST_SERVICES = {"test-service1", "test-service2"};
+  private static final String[] TEST_SCHEDULES = {"test-interval1", "test-interval2"};
   private static final String[] TEST_SCHEDULERS = {"a", "b"};
 
   @Autowired
@@ -65,6 +65,17 @@ public class ScheduleEventConfigurationTest {
     assertArrayEquals("Services not read correctly", TEST_SERVICES, config.getServices());
     assertArrayEquals("Schedules not read correctly", TEST_SCHEDULES, config.getSchedules());
     assertArrayEquals("Schedulers not read correctly", TEST_SCHEDULERS, config.getSchedulers());
+  }
+
+  @Test
+  public void testNullChecks() {
+    ScheduleEventConfiguration config = new ScheduleEventConfiguration();
+    assertEquals("Names not empty", 0, config.getNames().length);
+    assertEquals("Parameters not empty", 0, config.getParameters().length);
+    assertEquals("Paths not empty", 0, config.getPaths().length);
+    assertEquals("Schedulers not empty", 0, config.getSchedulers().length);
+    assertEquals("Schedules not empty", 0, config.getSchedules().length);
+    assertEquals("Services not empty", 0, config.getServices().length);
   }
 
   @Configuration

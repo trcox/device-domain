@@ -76,6 +76,15 @@ public class BaseProvisionWatcherConfigurationTest {
       i++;
     }
   }
+  
+  @Test
+  public void testNullChecks() {
+    BaseProvisionWatcherConfiguration config = new BaseProvisionWatcherConfiguration();
+    assertEquals("Name identifiers not empty", 0, config.getNameIdentifierExpressions().length);
+    assertEquals("Names not empty", 0, config.getNames().length);
+    assertEquals("Profiles not empty", 0, config.getProfiles().length);
+    assertEquals("Services not empty", 0, config.getServices().length);
+  }
 
   @Configuration
   static class Config {

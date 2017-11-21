@@ -37,6 +37,8 @@
 		<spring-test.version>4.2.7.RELEASE</spring-test.version>
 		<support-logging-client.version>0.5.0-SNAPSHOT</support-logging-client.version>
 		<junit.version>4.11</junit.version>
+		<spring-boot-starter-web.version>1.3.7.RELEASE</spring-boot-starter-web.version>
+		<spring-boot-starter-test.version>1.3.7.RELEASE</spring-boot-starter-test.version>
 		<maven.compiler.plugin.version>3.6.1</maven.compiler.plugin.version>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 		<project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
@@ -66,6 +68,18 @@
 			<artifactId>spring-test</artifactId>
 			<version>${spring-test.version}</version>
 			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-test</artifactId>
+			<scope>test</scope>
+			<version>${spring-boot-starter-test.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-web</artifactId>
+			<scope>test</scope>
+			<version>${spring-boot-starter-web.version}</version>
 		</dependency>
 		<dependency>
 			<groupId>org.edgexfoundry</groupId>
