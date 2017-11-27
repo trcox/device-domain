@@ -42,7 +42,7 @@ import org.edgexfoundry.support.logging.client.EdgeXLoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Repository;
 
-// TODO - Tyler - what happens if a profile is removed. How does this get cleaned out??
+// TODO - jpw Tyler - what happens if a profile is removed. How does this get cleaned out??
 /**
  * Cache of value descriptors, command and objects based on whats in the DS profile
  * 

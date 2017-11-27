@@ -22,7 +22,6 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 import org.edgexfoundry.controller.AddressableClient;
 import org.edgexfoundry.controller.DeviceClient;
@@ -30,7 +29,6 @@ import org.edgexfoundry.controller.DeviceProfileClient;
 import org.edgexfoundry.domain.meta.Addressable;
 import org.edgexfoundry.domain.meta.AdminState;
 import org.edgexfoundry.domain.meta.Device;
-import org.edgexfoundry.domain.meta.DeviceProfile;
 import org.edgexfoundry.domain.meta.OperatingState;
 import org.edgexfoundry.exception.controller.NotFoundException;
 import org.edgexfoundry.service.handler.ServiceHandler;
@@ -52,9 +50,6 @@ public class DeviceStore {
   private AddressableClient addressableClient;
 
   @Autowired
-  private DeviceProfileClient profileClient;
-
-  @Autowired
   private ProfileStore profileStore;
 
   @Value("${service.name}")
@@ -63,15 +58,16 @@ public class DeviceStore {
   // cache for devices
   private Map<String, Device> deviceCache = new HashMap<>();
 
-  private boolean remove(Device device, ServiceHandler handler) {
-    logger.debug("Removing managed device:  " + device.getName());
-    if (deviceCache.containsKey(device.getName())) {
-      deviceCache.remove(device.getName());
-      handler.disconnectDevice(device);
+  public Map<String, Device> initialize(String deviceServiceId, ServiceHandler handler) {
+    List<Device> metaDevices = deviceClient.devicesForService(deviceServiceId);
+    deviceCache = new HashMap<>();
+    for (Device device : metaDevices) {
       deviceClient.updateOpState(device.getId(), OperatingState.disabled.name());
-      profileStore.removeDevice(device);
+      add(device, handler);
     }
-    return true;
+
+    logger.info("Device service has " + deviceCache.size() + " devices.");
+    return getDevices();
   }
 
   public boolean remove(String deviceId, ServiceHandler handler) {
@@ -107,10 +103,79 @@ public class DeviceStore {
     return true;
   }
 
-  private Device addDeviceToMetaData(Device device) {
-    // Create a new addressable Object with the devicename + last 6 digits of MAC address.
-    // Assume this to be unique
+  public boolean update(String deviceId, ServiceHandler handler) {
+    Device device = deviceClient.device(deviceId);
+    Device localDevice = getDeviceById(deviceId);
+    if (device != null && localDevice != null && compare(device, localDevice)) {
+      return true;
+    }
 
+    return add(device, handler);
+  }
+
+  public Map<String, Device> getDevices() {
+    return deviceCache;
+  }
+
+
+  public Device getDevice(String deviceName) {
+    if (deviceCache != null) {
+      return deviceCache.get(deviceName);
+    } else {
+      logger.error("Device store cache is null, not returning any devices");
+      return null;
+    }
+  }
+
+  public Device getDeviceById(String deviceId) {
+    if (deviceCache != null) {
+      return deviceCache.values().stream().filter(device -> device.getId().equals(deviceId))
+          .findAny().orElse(null);
+    }
+    logger.error("Device store cache is null, not returning any devices");
+    return null;
+  }
+
+  public List<Device> getMetaDevices() {
+    List<Device> metaDevices;
+    metaDevices = deviceClient.devicesForServiceByName(serviceName);
+    for (Device metaDevice : metaDevices) {
+      Device device = deviceCache.get(metaDevice.getName());
+
+      if (device != null) {
+        device.setOperatingState(metaDevice.getOperatingState());
+      }
+    }
+    return metaDevices;
+  }
+
+  public Device getMetaDevice(String deviceName) {
+    List<Device> metaDevices = getMetaDevices();
+    return metaDevices.stream().filter(device -> deviceName.equals(device.getName())).findAny()
+        .orElse(null);
+  }
+
+  public Device getMetaDeviceById(String deviceId) {
+    List<Device> metaDevices = getMetaDevices();
+    return metaDevices.stream().filter(device -> deviceId.equals(device.getId())).findAny()
+        .orElse(null);
+  }
+
+  public boolean isDeviceLocked(String deviceId) {
+    Device device = getDeviceById(deviceId);
+    if (device == null) {
+      device = getMetaDeviceById(deviceId);
+      if (device == null) {
+        logger.error("Device not present with id " + deviceId);
+        throw new NotFoundException("device", deviceId);
+      }
+    }
+
+    return device.getAdminState().equals(AdminState.locked)
+        || device.getOperatingState().equals(OperatingState.disabled);
+  }
+
+  private Device addDeviceToMetaData(Device device) {
     Addressable addressable = null;
     try {
       addressableClient.addressableForName(device.getAddressable().getName());
@@ -147,14 +212,15 @@ public class DeviceStore {
     return device;
   }
 
-  public boolean update(String deviceId, ServiceHandler handler) {
-    Device device = deviceClient.device(deviceId);
-    Device localDevice = getDeviceById(deviceId);
-    if (device != null && localDevice != null && compare(device, localDevice)) {
-      return true;
+  private boolean remove(Device device, ServiceHandler handler) {
+    logger.debug("Removing managed device:  " + device.getName());
+    if (deviceCache.containsKey(device.getName())) {
+      deviceCache.remove(device.getName());
+      handler.disconnectDevice(device);
+      deviceClient.updateOpState(device.getId(), OperatingState.disabled.name());
+      profileStore.removeDevice(device);
     }
-
-    return add(device, handler);
+    return true;
   }
 
   private boolean compare(Device a, Device b) {
@@ -164,105 +230,5 @@ public class DeviceStore {
         && Arrays.equals(a.getLabels(), b.getLabels()) && a.getLocation().equals(b.getLocation())
         && a.getName().equals(b.getName()) && a.getOperatingState().equals(b.getOperatingState())
         && a.getProfile().equals(b.getProfile()) && a.getService().equals(b.getService());
-  }
-
-  public Map<String, Device> getDevices() {
-    return deviceCache;
-  }
-
-  public Map<String, Device> initialize(String deviceServiceId, ServiceHandler handler) {
-    List<Device> metaDevices = deviceClient.devicesForService(deviceServiceId);
-    deviceCache = new HashMap<>();
-    for (Device device : metaDevices) {
-      deviceClient.updateOpState(device.getId(), OperatingState.disabled.name());
-      add(device, handler);
-    }
-
-    logger.info("Device service has " + deviceCache.size() + " devices.");
-    return getDevices();
-  }
-
-  public List<Device> getMetaDevices() {
-    List<Device> metaDevices;
-    metaDevices = deviceClient.devicesForServiceByName(serviceName);
-    for (Device metaDevice : metaDevices) {
-      Device device = deviceCache.get(metaDevice.getName());
-
-      if (device != null) {
-        device.setOperatingState(metaDevice.getOperatingState());
-      }
-    }
-    return metaDevices;
-  }
-
-  public Device getMetaDevice(String deviceName) {
-    List<Device> metaDevices = getMetaDevices();
-    return metaDevices.stream().filter(device -> deviceName.equals(device.getName())).findAny()
-        .orElse(null);
-  }
-
-  public Device getMetaDeviceById(String deviceId) {
-    List<Device> metaDevices = getMetaDevices();
-    return metaDevices.stream().filter(device -> deviceId.equals(device.getId())).findAny()
-        .orElse(null);
-  }
-
-  public Device getDevice(String deviceName) {
-    if (deviceCache != null) {
-      return deviceCache.get(deviceName);
-    } else {
-      return null;
-    }
-  }
-
-  public Device getDeviceById(String deviceId) {
-    if (deviceCache != null) {
-      return deviceCache.values().stream().filter(device -> device.getId().equals(deviceId))
-          .findAny().orElse(null);
-    }
-
-    return null;
-  }
-
-  public boolean isDeviceLocked(String deviceId) {
-    Device device = getDeviceById(deviceId);
-    if (device == null) {
-      device = getMetaDeviceById(deviceId);
-      if (device == null) {
-        logger.error("Device not present with id " + deviceId);
-        throw new NotFoundException("device", deviceId);
-      }
-    }
-
-    return device.getAdminState().equals(AdminState.locked)
-        || device.getOperatingState().equals(OperatingState.disabled);
-  }
-
-  public void setDeviceOpState(String deviceName, OperatingState state) {
-    deviceClient.updateOpStateByName(deviceName, state.name());
-  }
-
-  public void setDeviceByIdOpState(String deviceId, OperatingState state) {
-    deviceClient.updateOpState(deviceId, state.name());
-  }
-
-  public boolean updateProfile(String profileId, ServiceHandler handler) {
-    DeviceProfile profile;
-    try {
-      profile = profileClient.deviceProfile(profileId);
-    } catch (Exception e) {
-      // No such profile exists to update
-      return true;
-    }
-
-    boolean success = true;
-    for (Device device : deviceCache.entrySet().stream().map(d -> d.getValue())
-        .filter(d -> profile.getName().equals(d.getProfile().getName()))
-        .collect(Collectors.toList())) {
-      // update all devices that use the profile
-      device.setProfile(profile);
-      success &= update(device.getId(), handler);
-    }
-    return success;
   }
 }

@@ -21,6 +21,7 @@ package org.edgexfoundry.device.store;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 import javax.ws.rs.NotFoundException;
 
@@ -28,6 +29,7 @@ import org.edgexfoundry.controller.DeviceProfileClient;
 import org.edgexfoundry.controller.DeviceServiceClient;
 import org.edgexfoundry.controller.ProvisionWatcherClient;
 import org.edgexfoundry.device.domain.configuration.BaseProvisionWatcherConfiguration;
+import org.edgexfoundry.domain.meta.DeviceProfile;
 import org.edgexfoundry.domain.meta.DeviceService;
 import org.edgexfoundry.domain.meta.ProvisionWatcher;
 import org.edgexfoundry.support.logging.client.EdgeXLogger;

@@ -31,7 +31,7 @@ import org.springframework.stereotype.Component;
  * @author Jim
  *
  */
-// TODO - Tyler; should we check that all the configuration parameters have either no elements or
+// TODO - jpw - Tyler; should we check that all the configuration parameters have either no elements or
 // are the same number of elements as name or else exit?
 @Component
 public class ScheduleConfiguration {
