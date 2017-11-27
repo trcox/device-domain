@@ -35,12 +35,13 @@ import org.springframework.stereotype.Repository;
 
 import com.google.gson.JsonObject;
 
+// TODO - needs to be simplified internally - jpw
 @Repository
 public class ObjectStore {
 
   @Value("${data.cache.size:1}")
   private int cacheSize;
-  
+
   @Autowired
   private ProfileStore profileStore;
 
@@ -64,7 +65,7 @@ public class ObjectStore {
     String deviceId = device.getId();
     List<Reading> readings = new ArrayList<>();
 
-    for (ServiceObject obj: objectsList) {
+    for (ServiceObject obj : objectsList) {
       String objectName = obj.getName();
 
       Reading reading = buildReading(objectName, value, device.getName());
@@ -72,7 +73,7 @@ public class ObjectStore {
 
       synchronized (objectCache) {
         if (objectCache.get(deviceId) == null) {
-          objectCache.put(deviceId, new HashMap<String,List<String>>());
+          objectCache.put(deviceId, new HashMap<String, List<String>>());
         }
 
         if (objectCache.get(deviceId).get(objectName) == null) {
@@ -87,20 +88,54 @@ public class ObjectStore {
       }
     }
 
-    String operationId = objectsList.stream().map(o -> o.getName())
-        .collect(Collectors.toList()).toString();
+    String operationId =
+        objectsList.stream().map(o -> o.getName()).collect(Collectors.toList()).toString();
 
     synchronized (responseCache) {
       if (responseCache.get(deviceId) == null) {
-        responseCache.put(deviceId, new HashMap<String,List<Reading>>());
+        responseCache.put(deviceId, new HashMap<String, List<Reading>>());
       }
 
-      responseCache.get(deviceId).put(operationId,readings);
+      responseCache.get(deviceId).put(operationId, readings);
     }
   }
 
-  private List<ServiceObject>
-      createObjectsList(ResourceOperation operation, Device device) {
+  public String get(String deviceId, String object) {
+    return get(deviceId, object, 1).get(0);
+  }
+
+  public JsonObject get(Device device, ResourceOperation operation) {
+    JsonObject jsonObject = new JsonObject();
+    List<ServiceObject> objectsList = createObjectsList(operation, device);
+
+    for (ServiceObject obj : objectsList) {
+      String objectName = obj.getName();
+      jsonObject.addProperty(objectName, get(device.getId(), objectName));
+    }
+
+    return jsonObject;
+  }
+
+  public List<Reading> getResponses(Device device, ResourceOperation operation) {
+    String deviceId = device.getId();
+    List<ServiceObject> objectsList = createObjectsList(operation, device);
+
+    if (objectsList == null) {
+      throw new NotFoundException("device", deviceId);
+    }
+
+    String operationId =
+        objectsList.stream().map(o -> o.getName()).collect(Collectors.toList()).toString();
+
+    if (responseCache.get(deviceId) == null
+        || responseCache.get(deviceId).get(operationId) == null) {
+      return new ArrayList<>();
+    }
+
+    return responseCache.get(deviceId).get(operationId);
+  }
+
+  private List<ServiceObject> createObjectsList(ResourceOperation operation, Device device) {
     Map<String, ServiceObject> objects = profileStore.getObjects().get(device.getName());
     List<ServiceObject> objectsList = new ArrayList<>();
 
@@ -115,9 +150,9 @@ public class ObjectStore {
       }
 
       if (operation.getSecondary() != null) {
-        for (String secondary: operation.getSecondary()) {
+        for (String secondary : operation.getSecondary()) {
           if (profileStore.descriptorExists(secondary)) {
-            objectsList.add((ServiceObject)objects.get(secondary));
+            objectsList.add((ServiceObject) objects.get(secondary));
           }
         }
       }
@@ -125,14 +160,9 @@ public class ObjectStore {
 
     return objectsList;
   }
-  
-  public String get(String deviceId, String object) {
-    return get(deviceId, object, 1).get(0);
-  }
 
   private List<String> get(String deviceId, String object, int i) {
-    if (objectCache.get(deviceId) == null
-        || objectCache.get(deviceId).get(object) == null
+    if (objectCache.get(deviceId) == null || objectCache.get(deviceId).get(object) == null
         || objectCache.get(deviceId).get(object).size() < i) {
       return null;
     }
@@ -140,37 +170,6 @@ public class ObjectStore {
     return objectCache.get(deviceId).get(object).subList(0, i);
   }
 
-  public JsonObject get(Device device, ResourceOperation operation) {
-    JsonObject jsonObject = new JsonObject();
-    List<ServiceObject> objectsList = createObjectsList(operation, device);
-
-    for (ServiceObject obj: objectsList) {
-      String objectName = obj.getName();
-      jsonObject.addProperty(objectName, get(device.getId(),objectName));
-    }
-
-    return jsonObject;
-  }
-
-  public List<Reading> getResponses(Device device, ResourceOperation operation) {
-    String deviceId = device.getId();
-    List<ServiceObject> objectsList = createObjectsList(operation, device);
-
-    if (objectsList == null) {
-      throw new NotFoundException("device", deviceId);
-    }
-
-    String operationId = objectsList.stream().map(o -> o.getName())
-        .collect(Collectors.toList()).toString();
-
-    if (responseCache.get(deviceId) == null
-        || responseCache.get(deviceId).get(operationId) == null) {
-      return new ArrayList<>();
-    }
-
-    return responseCache.get(deviceId).get(operationId);
-  }
-  
   private Reading buildReading(String key, String value, String deviceName) {
     Reading reading = new Reading();
     reading.setName(key);

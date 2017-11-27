@@ -30,8 +30,8 @@ import org.springframework.beans.factory.annotation.Value;
  * @author Jim
  *
  */
-// TODO - Tyler, what happens if the comma separated lists don't match? One is longer or shorter
-// than the other?
+// TODO - jpw - Tyler, what happens if the comma separated lists don't match? One is longer or
+// shorter than the other?
 public class BaseProvisionWatcherConfiguration {
 
   public static final String NAME_IDENTIFIER_KEY = "name";
