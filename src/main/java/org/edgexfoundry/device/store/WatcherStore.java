@@ -29,7 +29,6 @@ import org.edgexfoundry.controller.DeviceProfileClient;
 import org.edgexfoundry.controller.DeviceServiceClient;
 import org.edgexfoundry.controller.ProvisionWatcherClient;
 import org.edgexfoundry.device.domain.configuration.BaseProvisionWatcherConfiguration;
-import org.edgexfoundry.domain.meta.DeviceProfile;
 import org.edgexfoundry.domain.meta.DeviceService;
 import org.edgexfoundry.domain.meta.ProvisionWatcher;
 import org.edgexfoundry.support.logging.client.EdgeXLogger;
@@ -55,20 +54,20 @@ public class WatcherStore {
   @Autowired
   private DeviceServiceClient serviceClient;
 
-  private Map<String, ProvisionWatcher> watchers = new HashMap<>();
+  private Map<String, ProvisionWatcher> watcherCache = new HashMap<>();
 
   public void setWatchers(Map<String, ProvisionWatcher> watchers) {
-    this.watchers = watchers;
+    this.watcherCache = watchers;
   }
 
   public Map<String, ProvisionWatcher> getWatchers() {
-    return watchers;
+    return watcherCache;
   }
 
   public boolean add(String provisionWatcherId) {
     // if watcher not found, 404 exception will be thrown
     ProvisionWatcher watcher = provisionClient.provisionWatcher(provisionWatcherId);
-    watchers.put(watcher.getName(), watcher);
+    watcherCache.put(watcher.getName(), watcher);
     return true;
   }
 
@@ -79,7 +78,7 @@ public class WatcherStore {
     }
     if (watcher.getId() == null) {
       if (persistProvisionWatcher(watcher)) {
-        watchers.put(watcher.getName(), watcher);
+        watcherCache.put(watcher.getName(), watcher);
         return true;
       }
     }
@@ -88,14 +87,14 @@ public class WatcherStore {
   }
 
   public boolean remove(String provisionWatcherId) {
-    ProvisionWatcher watcher = watchers.values().stream()
+    ProvisionWatcher watcher = watcherCache.values().stream()
         .filter(w -> w.getId().equals(provisionWatcherId)).findAny().orElse(null);
     return remove(watcher);
   }
 
   public boolean remove(ProvisionWatcher provisionWatcher) {
     if (provisionWatcher != null) {
-      return (watchers.remove(provisionWatcher.getName()) != null);
+      return (watcherCache.remove(provisionWatcher.getName()) != null);
     }
     return false;
   }
@@ -109,7 +108,7 @@ public class WatcherStore {
     remove(provisionWatcher);
     if (provisionWatcher.getId() == null)
       return add(provisionWatcher);
-    watchers.put(provisionWatcher.getName(), provisionWatcher);
+    watcherCache.put(provisionWatcher.getName(), provisionWatcher);
     return true;
   }
 
@@ -121,6 +120,11 @@ public class WatcherStore {
     }
     // load watchers from configuration
     addConfiguredWatchers(deviceServiceId, configuration);
+  }
+
+  public List<ProvisionWatcher> getWatcherByProfileName(String profileName) {
+    return watcherCache.entrySet().stream().map(d -> d.getValue())
+        .filter(d -> profileName.equals(d.getProfile().getName())).collect(Collectors.toList());
   }
 
   private List<ProvisionWatcher> getExistingWatchers(String deviceServiceId) {

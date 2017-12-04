@@ -22,10 +22,10 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 import org.edgexfoundry.controller.AddressableClient;
 import org.edgexfoundry.controller.DeviceClient;
-import org.edgexfoundry.controller.DeviceProfileClient;
 import org.edgexfoundry.domain.meta.Addressable;
 import org.edgexfoundry.domain.meta.AdminState;
 import org.edgexfoundry.domain.meta.Device;
@@ -159,6 +159,12 @@ public class DeviceStore {
     List<Device> metaDevices = getMetaDevices();
     return metaDevices.stream().filter(device -> deviceId.equals(device.getId())).findAny()
         .orElse(null);
+  }
+  
+  public List<Device> getDeviceByProfileName(String profileName){
+   return deviceCache.entrySet().stream().map(d -> d.getValue())
+    .filter(d -> profileName.equals(d.getProfile().getName()))
+    .collect(Collectors.toList());
   }
 
   public boolean isDeviceLocked(String deviceId) {
