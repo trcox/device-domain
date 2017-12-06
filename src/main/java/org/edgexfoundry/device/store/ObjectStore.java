@@ -28,7 +28,6 @@ import org.edgexfoundry.device.domain.ServiceObject;
 import org.edgexfoundry.domain.core.Reading;
 import org.edgexfoundry.domain.meta.Device;
 import org.edgexfoundry.domain.meta.ResourceOperation;
-import org.edgexfoundry.exception.controller.NotFoundException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Repository;
@@ -120,10 +119,6 @@ public class ObjectStore {
     String deviceId = device.getId();
     List<ServiceObject> objectsList = createObjectsList(operation, device);
 
-    if (objectsList == null) {
-      throw new NotFoundException("device", deviceId);
-    }
-
     String operationId =
         objectsList.stream().map(o -> o.getName()).collect(Collectors.toList()).toString();
 
@@ -164,7 +159,7 @@ public class ObjectStore {
   private List<String> get(String deviceId, String object, int i) {
     if (objectCache.get(deviceId) == null || objectCache.get(deviceId).get(object) == null
         || objectCache.get(deviceId).get(object).size() < i) {
-      return null;
+      return new ArrayList<>();
     }
 
     return objectCache.get(deviceId).get(object).subList(0, i);
