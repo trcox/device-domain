@@ -76,11 +76,9 @@ public class WatcherStore {
       logger.error("Cannot add null watcher to the watcher store");
       return false;
     }
-    if (watcher.getId() == null) {
-      if (persistProvisionWatcher(watcher)) {
-        watcherCache.put(watcher.getName(), watcher);
-        return true;
-      }
+    if (watcher.getId() == null && persistProvisionWatcher(watcher)) {
+      watcherCache.put(watcher.getName(), watcher);
+      return true;
     }
     logger.error("Cannot add un-persisted watcher to the watcher store");
     return false;

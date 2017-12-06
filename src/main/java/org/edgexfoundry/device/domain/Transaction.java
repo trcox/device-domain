@@ -40,7 +40,7 @@ public class Transaction {
   public Transaction() {
     setTransactionId(UUID.randomUUID().toString());
     setReadings(new ArrayList<Reading>());
-    opIds = new HashMap<String, Boolean>();
+    opIds = new HashMap<>();
   }
 
   public String newOpId() {

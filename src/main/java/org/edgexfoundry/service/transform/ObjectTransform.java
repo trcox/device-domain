@@ -18,14 +18,10 @@
 
 package org.edgexfoundry.service.transform;
 
-import org.edgexfoundry.domain.meta.PropertyValue;
-
 public interface ObjectTransform {
 
   boolean getTransformData();
 
   void setTransformData(boolean transformData);
-
-  String transform(PropertyValue value, String result);
 
 }
