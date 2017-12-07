@@ -33,6 +33,7 @@ import java.util.List;
 import org.apache.commons.lang3.reflect.FieldUtils;
 import org.edgexfoundry.controller.DeviceProfileClient;
 import org.edgexfoundry.controller.ValueDescriptorClient;
+import org.edgexfoundry.device.domain.ServiceObjectFactory;
 import org.edgexfoundry.device.store.impl.ProfileStoreImpl;
 import org.edgexfoundry.domain.common.ValueDescriptor;
 import org.edgexfoundry.domain.meta.Device;
@@ -60,6 +61,9 @@ public class ProfileStoreTest {
 
   @Mock
   private DeviceProfileClient deviceProfileClient;
+  
+  @Mock
+  private ServiceObjectFactory serviceObjectFactory;
 
   private List<ValueDescriptor> valueDescriptors;
   private ValueDescriptor descriptor;
