@@ -23,6 +23,8 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 
+import org.edgexfoundry.device.store.impl.ObjectStoreImpl;
+import org.edgexfoundry.device.store.impl.ProfileStoreImpl;
 import org.edgexfoundry.domain.meta.Device;
 import org.edgexfoundry.domain.meta.DeviceProfile;
 import org.edgexfoundry.domain.meta.ResourceOperation;
@@ -43,10 +45,10 @@ public class ObjectStoreTest {
   private static final String TEST_VALUE = "test value";
 
   @InjectMocks
-  private ObjectStore objectStore;
+  private ObjectStoreImpl objectStore;
 
   @Mock
-  private ProfileStore profileStore;
+  private ProfileStoreImpl profileStore;
 
   private Device device;
 

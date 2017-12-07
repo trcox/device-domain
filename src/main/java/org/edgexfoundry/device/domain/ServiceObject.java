@@ -30,8 +30,8 @@ import org.edgexfoundry.domain.meta.DeviceObject;
  */
 @SuppressWarnings("serial")
 public class ServiceObject extends DeviceObject {
-  
-  public ServiceObject(DeviceObject object) {
+
+  protected ServiceObject(DeviceObject object) {
     this.setName(object.getName());
     this.setTag(object.getTag());
     this.setDescription(object.getDescription());

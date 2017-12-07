@@ -31,6 +31,7 @@ import org.edgexfoundry.controller.DeviceProfileClient;
 import org.edgexfoundry.controller.DeviceServiceClient;
 import org.edgexfoundry.controller.ProvisionWatcherClient;
 import org.edgexfoundry.device.domain.configuration.BaseProvisionWatcherConfiguration;
+import org.edgexfoundry.device.store.impl.WatcherStoreImpl;
 import org.edgexfoundry.domain.meta.Addressable;
 import org.edgexfoundry.domain.meta.DeviceProfile;
 import org.edgexfoundry.domain.meta.DeviceService;
@@ -58,7 +59,7 @@ public class WatcherStoreTest {
   private static final String TEST_SERVICE_ID = "TestService";
 
   @InjectMocks
-  private WatcherStore watcherStore;
+  private WatcherStoreImpl watcherStore;
 
   @Mock
   private ProvisionWatcherClient provisionClient;

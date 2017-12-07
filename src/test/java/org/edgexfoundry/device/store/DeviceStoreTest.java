@@ -35,6 +35,8 @@ import javax.ws.rs.NotFoundException;
 import org.apache.commons.lang3.reflect.FieldUtils;
 import org.edgexfoundry.controller.AddressableClient;
 import org.edgexfoundry.controller.DeviceClient;
+import org.edgexfoundry.device.store.impl.DeviceStoreImpl;
+import org.edgexfoundry.device.store.impl.ProfileStoreImpl;
 import org.edgexfoundry.domain.meta.Addressable;
 import org.edgexfoundry.domain.meta.Device;
 import org.edgexfoundry.domain.meta.DeviceProfile;
@@ -59,7 +61,7 @@ public class DeviceStoreTest {
   private static final String TEST_SERVICE_NAME = "TEST_SERVICE";
 
   @InjectMocks
-  private DeviceStore deviceStore;
+  private DeviceStoreImpl deviceStore;
 
   @Mock
   private DeviceClient deviceClient;
@@ -68,7 +70,7 @@ public class DeviceStoreTest {
   private AddressableClient addressableClient;
 
   @Mock
-  private ProfileStore profileStore;
+  private ProfileStoreImpl profileStore;
 
   @Mock
   private ServiceHandler handler;

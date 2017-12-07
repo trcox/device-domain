@@ -16,30 +16,12 @@
  * @version: 1.0.0
  *******************************************************************************/
 
-package org.edgexfoundry.device.store;
+package org.edgexfoundry.device.domain;
 
-import java.util.List;
-import java.util.Map;
+import org.edgexfoundry.domain.meta.DeviceObject;
 
-import org.edgexfoundry.device.domain.ServiceObject;
-import org.edgexfoundry.domain.common.ValueDescriptor;
-import org.edgexfoundry.domain.meta.Device;
-import org.edgexfoundry.domain.meta.ResourceOperation;
+public interface ServiceObjectFactory {
 
-public interface ProfileStore {
-
-  Map<String, Map<String, Map<String, List<ResourceOperation>>>> getCommands();
-
-  Map<String, Map<String, ServiceObject>> getObjects();
-
-  List<ValueDescriptor> getValueDescriptors();
-
-  boolean descriptorExists(String name);
-
-  void addDevice(Device device);
-
-  void updateDevice(Device device);
-
-  void removeDevice(Device device);
+  ServiceObject createServiceObject(DeviceObject object);
 
 }
