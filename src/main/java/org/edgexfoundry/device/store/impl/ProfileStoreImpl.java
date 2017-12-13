@@ -66,7 +66,7 @@ public class ProfileStoreImpl implements ProfileStore {
   @Autowired
   private ServiceObjectFactory serviceObjectFactory;
 
-  private List<ValueDescriptor> valueDescriptors = new ArrayList<>();
+  private Map<String, ValueDescriptor> valueDescriptors = new HashMap<>();
 
   // TODO - jpw - wow, make these simpler, separate objects
   // map (key of device name) to cache of each device's resources keyed by resource name
@@ -88,19 +88,18 @@ public class ProfileStoreImpl implements ProfileStore {
 
   @Override
   public List<ValueDescriptor> getValueDescriptors() {
-    return valueDescriptors;
+    return valueDescriptors.values().stream().collect(Collectors.toList());
   }
 
   @Override
   public boolean descriptorExists(String name) {
-    return !getValueDescriptors().stream().filter(desc -> desc.getName().equals(name))
-        .collect(Collectors.toList()).isEmpty();
+    return valueDescriptors.containsKey(name);
   }
 
   @Override
   public void addDevice(Device device) {
     if (completeProfile(device)) {
-      List<ValueDescriptor> descriptors = retrieveAllValueDescriptors();
+      updateValueDescriptors();
       List<String> usedDescriptors = retrieveUsedDescriptors(device);
 
       Map<String, Map<String, List<ResourceOperation>>> deviceOperations = new HashMap<>();
@@ -113,7 +112,7 @@ public class ProfileStoreImpl implements ProfileStore {
       objects.put(device.getName(), deviceObjects);
       commands.put(device.getName(), deviceOperations);
 
-      collectValueDescriptors(device, ops, descriptors, usedDescriptors);
+      collectValueDescriptors(device, ops, usedDescriptors);
     } else {
       logger.error(
           "Device is not associated to a profile and cannot therefore be added to the caches");
@@ -147,14 +146,18 @@ public class ProfileStoreImpl implements ProfileStore {
     return descriptor;
   }
 
-  private List<ValueDescriptor> retrieveAllValueDescriptors() {
+  private void updateValueDescriptors() {
     List<ValueDescriptor> descriptors;
+    
     try {
       descriptors = valueDescriptorClient.valueDescriptors();
     } catch (Exception e) {
       descriptors = new ArrayList<>();
     }
-    return descriptors;
+    
+    for (ValueDescriptor valueDescriptor : descriptors) {
+      valueDescriptors.put(valueDescriptor.getName(), valueDescriptor);
+    }
   }
 
   private List<String> retrieveUsedDescriptors(Device device) {
@@ -199,13 +202,14 @@ public class ProfileStoreImpl implements ProfileStore {
   }
 
   private void collectValueDescriptors(Device device, List<ResourceOperation> ops,
-      List<ValueDescriptor> descriptors, List<String> usedDescriptors) {
+      List<String> usedDescriptors) {
     // Create a value descriptor for each parameter using its underlying object
     for (ResourceOperation op : ops) {
-      ValueDescriptor descriptor = descriptors.stream()
-          .filter(d -> d.getName().equals(op.getParameter())).findAny().orElse(null);
+      ValueDescriptor descriptor;
 
-      if (descriptor == null) {
+      if (valueDescriptors.containsKey(op.getParameter())) {
+        descriptor = valueDescriptors.get(op.getParameter());
+      } else {
         if (!usedDescriptors.contains(op.getParameter())) {
           continue;
         }
@@ -216,9 +220,7 @@ public class ProfileStoreImpl implements ProfileStore {
         descriptor = createDescriptor(op.getParameter(), object);
       }
 
-      if (!valueDescriptors.contains(descriptor))
-        valueDescriptors.add(descriptor);
-      descriptors.add(descriptor);
+      valueDescriptors.put(descriptor.getName(),descriptor);
     }
   }
 
