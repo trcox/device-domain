@@ -66,7 +66,7 @@ public class DeviceStoreImpl implements DeviceStore {
     List<Device> metaDevices = deviceClient.devicesForService(deviceServiceId);
     deviceCache = new HashMap<>();
     for (Device device : metaDevices) {
-      deviceClient.updateOpState(device.getId(), OperatingState.disabled.name());
+      deviceClient.updateOpState(device.getId(), OperatingState.DISABLED.name());
       add(device, handler);
     }
 
@@ -192,8 +192,8 @@ public class DeviceStoreImpl implements DeviceStore {
       }
     }
 
-    return device.getAdminState().equals(AdminState.locked)
-        || device.getOperatingState().equals(OperatingState.disabled);
+    return device.getAdminState().equals(AdminState.LOCKED)
+        || device.getOperatingState().equals(OperatingState.DISABLED);
   }
 
   private Device addDeviceToMetaData(Device device) {
@@ -238,7 +238,7 @@ public class DeviceStoreImpl implements DeviceStore {
     if (deviceCache.containsKey(device.getName())) {
       deviceCache.remove(device.getName());
       handler.disconnectDevice(device);
-      deviceClient.updateOpState(device.getId(), OperatingState.disabled.name());
+      deviceClient.updateOpState(device.getId(), OperatingState.DISABLED.name());
       profileStore.removeDevice(device);
     }
     return true;
