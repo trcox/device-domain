@@ -28,7 +28,9 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import org.apache.commons.lang3.reflect.FieldUtils;
 import org.edgexfoundry.controller.DeviceProfileClient;
@@ -65,7 +67,7 @@ public class ProfileStoreTest {
   @Mock
   private ServiceObjectFactory serviceObjectFactory;
 
-  private List<ValueDescriptor> valueDescriptors;
+  private Map<String, ValueDescriptor> valueDescriptors;
   private ValueDescriptor descriptor;
   private Device device;
   private DeviceProfile profile;
@@ -74,8 +76,8 @@ public class ProfileStoreTest {
   public void setup() throws IOException {
     MockitoAnnotations.initMocks(this);
     descriptor = ValueDescriptorData.newTestInstance();
-    valueDescriptors = new ArrayList<>();
-    valueDescriptors.add(descriptor);
+    valueDescriptors = new HashMap<>();
+    valueDescriptors.put(descriptor.getName(), descriptor);
     device = DeviceData.newTestInstance();
     profile = loadProfile();
     device.setProfile(profile);
@@ -115,7 +117,7 @@ public class ProfileStoreTest {
 
   @Test
   public void testAddDevice() {
-    when(valueDescriptorClient.valueDescriptors()).thenReturn(valueDescriptors);
+    when(valueDescriptorClient.valueDescriptors()).thenReturn(profileStore.getValueDescriptors());
     profileStore.addDevice(device);
     assertEquals("Commands should be in cache", 1, profileStore.getCommands().size());
     assertEquals("Objects should be in cache", 1, profileStore.getObjects().size());
@@ -125,7 +127,7 @@ public class ProfileStoreTest {
 
   @Test
   public void testRemoveDevice() {
-    when(valueDescriptorClient.valueDescriptors()).thenReturn(valueDescriptors);
+    when(valueDescriptorClient.valueDescriptors()).thenReturn(profileStore.getValueDescriptors());
     profileStore.addDevice(device);
     assertEquals("Commands should be in cache", 1, profileStore.getCommands().size());
     assertEquals("Objects should be in cache", 1, profileStore.getObjects().size());
@@ -136,7 +138,7 @@ public class ProfileStoreTest {
 
   @Test
   public void testUpdateDevice() {
-    when(valueDescriptorClient.valueDescriptors()).thenReturn(valueDescriptors);
+    when(valueDescriptorClient.valueDescriptors()).thenReturn(profileStore.getValueDescriptors());
     profileStore.addDevice(device);
     assertEquals("Commands should be in cache", 1, profileStore.getCommands().size());
     assertEquals("Objects should be in cache", 1, profileStore.getObjects().size());
