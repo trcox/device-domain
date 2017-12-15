@@ -28,7 +28,6 @@ import org.edgexfoundry.device.domain.ServiceObject;
 import org.edgexfoundry.device.store.ObjectStore;
 import org.edgexfoundry.device.store.ProfileStore;
 import org.edgexfoundry.domain.core.Reading;
-import org.edgexfoundry.domain.meta.Device;
 import org.edgexfoundry.domain.meta.ResourceOperation;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -36,7 +35,6 @@ import org.springframework.stereotype.Repository;
 
 import com.google.gson.JsonObject;
 
-// TODO - jpw - needs to be simplified internally
 @Repository
 public class ObjectStoreImpl implements ObjectStore {
 
@@ -46,114 +44,133 @@ public class ObjectStoreImpl implements ObjectStore {
   @Autowired
   private ProfileStore profileStore;
 
-  private Map<String, Map<String, List<String>>> objectCache = new HashMap<>();
+  // map to each device's value cache by composition of device and object name
+  private Map<String, List<String>> valueCache = new HashMap<>();
 
-  private Map<String, Map<String, List<Reading>>> responseCache = new HashMap<>();
+  private String buildValueKey(String deviceName, String objectName) {
+    return String.format("%S~%S", deviceName, objectName);
+  }
+
+  private List<String> getValue(String deviceName, String objectName) {
+    return valueCache.get(buildValueKey(deviceName, objectName));
+  }
+
+  private void putValue(String deviceName, String objectName, List<String> value) {
+    valueCache.put(buildValueKey(deviceName, objectName), value);
+  }
+
+  // map to each device's reading cache by composition of device and operation id
+  private Map<String, List<Reading>> readingCache = new HashMap<>();
+
+  private String buildReadingKey(String deviceName, String operationId) {
+    return String.format("%S~%S", deviceName, operationId);
+  }
+
+  private List<Reading> getReadings(String deviceName, String operationId) {
+    return readingCache.get(buildReadingKey(deviceName, operationId));
+  }
+
+  private void putReadings(String deviceName, String operationId, List<Reading> readings) {
+    readingCache.put(buildReadingKey(deviceName, operationId), readings);
+  }
+
+  private String generateOperationId(ResourceOperation operation, String deviceName) {
+    List<ServiceObject> objectsList = createObjectsList(operation, deviceName);
+    return objectsList.stream().map(o -> o.getName()).collect(Collectors.toList()).toString();
+  }
 
   /**
    * The value could be transformed or not depending on caller
-   * 
+   *
    * @param device
    * @param operation
    * @param value
    */
   @Override
-  public void put(Device device, ResourceOperation operation, String value) {
+  public void put(String deviceName, ResourceOperation operation, String value) {
     if (value == null || value.equals("") || value.equals("{}")) {
       return;
     }
 
-    List<ServiceObject> objectsList = createObjectsList(operation, device);
-    String deviceId = device.getId();
+    List<ServiceObject> objectsList = createObjectsList(operation, deviceName);
     List<Reading> readings = new ArrayList<>();
 
     for (ServiceObject obj : objectsList) {
       String objectName = obj.getName();
+      readings.add(buildReading(deviceName, objectName, value));
 
-      Reading reading = buildReading(objectName, value, device.getName());
-      readings.add(reading);
-
-      synchronized (objectCache) {
-        if (objectCache.get(deviceId) == null) {
-          objectCache.put(deviceId, new HashMap<String, List<String>>());
+      synchronized (valueCache) {
+        List<String> valueList = getValue(deviceName, objectName);
+        if (valueList == null) {
+          valueList = new ArrayList<String>();
         }
 
-        if (objectCache.get(deviceId).get(objectName) == null) {
-          objectCache.get(deviceId).put(objectName, new ArrayList<String>());
+        valueList.add(0, value);
+
+        if (valueList.size() > cacheSize) {
+          valueList.remove(cacheSize - 1);
         }
 
-        objectCache.get(deviceId).get(objectName).add(0, value);
-
-        if (objectCache.get(deviceId).get(objectName).size() == cacheSize) {
-          objectCache.get(deviceId).get(objectName).remove(cacheSize - 1);
-        }
+        putValue(deviceName, objectName, valueList);
       }
     }
 
-    String operationId =
-        objectsList.stream().map(o -> o.getName()).collect(Collectors.toList()).toString();
+    String operationId = generateOperationId(operation, deviceName);
 
-    synchronized (responseCache) {
-      if (responseCache.get(deviceId) == null) {
-        responseCache.put(deviceId, new HashMap<String, List<Reading>>());
-      }
-
-      responseCache.get(deviceId).put(operationId, readings);
+    synchronized (readingCache) {
+      putReadings(deviceName, operationId, readings);
     }
   }
 
   @Override
-  public String get(String deviceId, String object) {
-    return get(deviceId, object, 1).get(0);
+  public String get(String deviceName, String object) {
+    return get(deviceName, object, 1).get(0);
   }
 
   @Override
-  public JsonObject get(Device device, ResourceOperation operation) {
+  public JsonObject get(String deviceName, ResourceOperation operation) {
     JsonObject jsonObject = new JsonObject();
-    List<ServiceObject> objectsList = createObjectsList(operation, device);
+    List<ServiceObject> objectsList = createObjectsList(operation, deviceName);
 
     for (ServiceObject obj : objectsList) {
       String objectName = obj.getName();
-      jsonObject.addProperty(objectName, get(device.getId(), objectName));
+      jsonObject.addProperty(objectName, get(deviceName, objectName));
     }
 
     return jsonObject;
   }
 
   @Override
-  public List<Reading> getResponses(Device device, ResourceOperation operation) {
-    String deviceId = device.getId();
-    List<ServiceObject> objectsList = createObjectsList(operation, device);
+  public List<Reading> getResponses(String deviceName, ResourceOperation operation) {
+    String operationId = generateOperationId(operation, deviceName);
+    List<Reading> readings = getReadings(deviceName, operationId);
 
-    String operationId =
-        objectsList.stream().map(o -> o.getName()).collect(Collectors.toList()).toString();
-
-    if (responseCache.get(deviceId) == null
-        || responseCache.get(deviceId).get(operationId) == null) {
-      return new ArrayList<>();
+    if (readings == null) {
+      readings = new ArrayList<>();
     }
 
-    return responseCache.get(deviceId).get(operationId);
+    return readings;
   }
 
-  private List<ServiceObject> createObjectsList(ResourceOperation operation, Device device) {
-    Map<String, ServiceObject> objects = profileStore.getObjects().get(device.getName());
+  private List<ServiceObject> createObjectsList(ResourceOperation operation, String deviceName) {
     List<ServiceObject> objectsList = new ArrayList<>();
 
-    if (operation != null && objects != null) {
-      ServiceObject object = objects.get(operation.getObject());
+    if (operation != null) {
+      ServiceObject object = profileStore.getServiceObject(deviceName, operation.getObject());
 
-      if (profileStore.descriptorExists(operation.getParameter())) {
-        object.setName(operation.getParameter());
-        objectsList.add(object);
-      } else if (profileStore.descriptorExists(object.getName())) {
-        objectsList.add(object);
-      }
+      if (object != null) {
+        if (profileStore.descriptorExists(operation.getParameter())) {
+          object.setName(operation.getParameter());
+          objectsList.add(object);
+        } else if (profileStore.descriptorExists(object.getName())) {
+          objectsList.add(object);
+        }
 
-      if (operation.getSecondary() != null) {
-        for (String secondary : operation.getSecondary()) {
-          if (profileStore.descriptorExists(secondary)) {
-            objectsList.add((ServiceObject) objects.get(secondary));
+        if (operation.getSecondary() != null) {
+          for (String secondary : operation.getSecondary()) {
+            if (profileStore.descriptorExists(secondary)) {
+              objectsList.add(profileStore.getServiceObject(deviceName, secondary));
+            }
           }
         }
       }
@@ -162,19 +179,17 @@ public class ObjectStoreImpl implements ObjectStore {
     return objectsList;
   }
 
-  private List<String> get(String deviceId, String object, int i) {
-    if (objectCache.get(deviceId) == null || objectCache.get(deviceId).get(object) == null
-        || objectCache.get(deviceId).get(object).size() < i) {
+  private List<String> get(String deviceName, String object, int i) {
+    List<String> values = getValue(deviceName, object);
+    if (values == null || values.size() < i) {
       return new ArrayList<>();
     }
 
-    return objectCache.get(deviceId).get(object).subList(0, i);
+    return values.subList(0, i);
   }
 
-  private Reading buildReading(String key, String value, String deviceName) {
-    Reading reading = new Reading();
-    reading.setName(key);
-    reading.setValue(value);
+  private Reading buildReading(String deviceName, String key, String value) {
+    Reading reading = new Reading(key, value);
     reading.setDevice(deviceName);
     return reading;
   }

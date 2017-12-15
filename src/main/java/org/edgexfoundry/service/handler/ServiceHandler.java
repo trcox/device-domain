@@ -21,13 +21,13 @@ package org.edgexfoundry.service.handler;
 import org.edgexfoundry.domain.meta.Device;
 
 public interface ServiceHandler {
-  
+
   void initializeDevice(Device device);
-  
+
   void initialize();
 
   void disconnectDevice(Device device);
-  
+
   void scan();
 
 }

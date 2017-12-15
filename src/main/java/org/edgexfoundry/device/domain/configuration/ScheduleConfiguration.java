@@ -24,10 +24,10 @@ import org.springframework.stereotype.Component;
 /**
  * Object representing the schedule(s) configuration as determined by configuration settings or
  * default values.
- * 
+ *
  * The configuration allows or more than one schedule by providing comma separated list for each of
  * the properties below.
- * 
+ *
  * @author Jim
  *
  */
@@ -118,5 +118,5 @@ public class ScheduleConfiguration {
     if (runOnces != null)
       this.runOnces = runOnces;
   }
-  
+
 }

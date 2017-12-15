@@ -76,7 +76,7 @@ public class BaseProvisionWatcherConfigurationTest {
       i++;
     }
   }
-  
+
   @Test
   public void testNullChecks() {
     BaseProvisionWatcherConfiguration config = new BaseProvisionWatcherConfiguration();

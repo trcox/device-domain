@@ -24,7 +24,7 @@ import org.edgexfoundry.domain.meta.DeviceObject;
  * Device object should someday be a service or service object in core. Both device and service
  * share the common properties for now. This helps obfuscate the 'device' nature associated with
  * DeviceObject and just renames it ServiceObject.
- * 
+ *
  * @author Jim
  *
  */

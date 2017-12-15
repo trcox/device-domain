@@ -71,7 +71,7 @@ public class TransactionTest {
     assertTrue("OpId should be finished", opIds.get(opId));
     assertTrue("Transaction should be finished", transaction.isFinished());
   }
-  
+
   @Test
   public void testFinishOpWithNullReadings() throws IllegalAccessException {
     String opId = transaction.newOpId();

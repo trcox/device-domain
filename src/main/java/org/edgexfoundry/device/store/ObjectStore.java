@@ -21,18 +21,17 @@ package org.edgexfoundry.device.store;
 import java.util.List;
 
 import org.edgexfoundry.domain.core.Reading;
-import org.edgexfoundry.domain.meta.Device;
 import org.edgexfoundry.domain.meta.ResourceOperation;
 
 import com.google.gson.JsonObject;
 
 public interface ObjectStore {
 
-  void put(Device device, ResourceOperation operation, String value);
+  void put(String deviceName, ResourceOperation operation, String value);
 
-  String get(String deviceId, String object);
+  String get(String deviceName, String object);
 
-  JsonObject get(Device device, ResourceOperation operation);
+  JsonObject get(String deviceName, ResourceOperation operation);
 
-  List<Reading> getResponses(Device device, ResourceOperation operation);
+  List<Reading> getResponses(String deviceName, ResourceOperation operation);
 }

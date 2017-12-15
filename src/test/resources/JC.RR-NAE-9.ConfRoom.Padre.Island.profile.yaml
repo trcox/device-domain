@@ -2,17 +2,17 @@
 name: "JC.RR5.NAE9.ConfRoom.Padre.Island"
 manufacturer: "JohnsonControls"
 model: "NAE-5510"
-labels: 
+labels:
     - "thermostat"
     - "industrial"
 description: "US RR5-2 Padre Island Conference Room"
 deviceResources:
-    -   
+    -
         name: AnalogInput_3000290
         description: "US RR5-2 Padre Island Conference Room Current Temperature"
-        attributes: 
+        attributes:
             { type: "analogInput", instance: "3000290" }
-        properties: 
+        properties:
             value:
                 { type: "Float", size: "4", readWrite: "R", defaultValue: "0.00", minimum: "-99.99", maximum: "199.99"  }
             units:
@@ -21,9 +21,9 @@ deviceResources:
     -
         name: AnalogOutput_3000289
         description: "US RR5-2 Padre Island Conference Room Temperature Set Point"
-        attributes: 
+        attributes:
             { type: "analogOutput", instance: "3000289" }
-        properties: 
+        properties:
             value:
                 { type: "Float", size: "4", readWrite: "RW", defaultValue: "0.00", minimum: "-99.99", maximum: "199.99"  }
             units:
@@ -35,7 +35,7 @@ resources:
         get:
             -
                 { operation: "get", object: "AnalogInput_3000290", property: "value", parameter: "CurrentTemperature" }
-    -   
+    -
         name: SetPoint
         set:
             -
@@ -44,13 +44,13 @@ resources:
             -
                 { operation: "get", object: "AnalogOutput_3000289", property: "value", parameter: "SetPoint" }
 
-commands: 
-  - 
+commands:
+  -
     name: CurrentTemperature
-    get: 
+    get:
         path: "/api/v1/device/{deviceId}/CurrentTemperature"
         responses:
-          - 
+          -
             code: "200"
             description: ""
             expectedValues: ["CurrentTemperature"]
@@ -58,11 +58,11 @@ commands:
             code: "503"
             description: "service unavailable"
             expectedValues: []
-    put: 
+    put:
         path: "/api/v1/device/{deviceId}/CurrentTemperature"
         parameterNames: ["enableRandomization","collectionFrequency"]
         responses:
-          - 
+          -
             code: "204"
             description: "valid and accepted"
             expectedValues: []
@@ -74,7 +74,7 @@ commands:
             code: "503"
             description: "service unavailable"
             expectedValues: []
-  - 
+  -
     name: SetPoint
     get:
         path: "/api/v1/device/{deviceId}/SetPoint"
@@ -87,11 +87,11 @@ commands:
             code: "503"
             description: "service unavailable"
             expectedValues: []
-    put: 
+    put:
         path: "/api/v1/device/{deviceId}/SetPoint"
         parameterNames: ["enableRandomization","collectionFrequency"]
         responses:
-          - 
+          -
             code: "204"
             description: "valid and accepted"
             expectedValues: []

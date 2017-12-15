@@ -237,7 +237,7 @@ public class WatcherStoreTest {
     watcherStore.initialize(TEST_SERVICE_ID, config);
     assertEquals("Config watcher should not have loaded", 0, watcherStore.getWatchers().size());
   }
-  
+
   @Test
   public void testInitializeDeviceServiceError() {
     BaseProvisionWatcherConfiguration config = new BaseProvisionWatcherConfiguration();

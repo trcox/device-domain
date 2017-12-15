@@ -27,7 +27,7 @@ import java.util.Map;
  * devices. A scan "map" might include the scan name and a scan MAC address range to scan. A scan "map" might be
  * name and a URL to query for new devices. What goes into a scan map is based on device type and
  * device service arrangements.
- * 
+ *
  * @author Jim White
  *
  */
