@@ -59,5 +59,5 @@ public class ScanListTest {
     assertTrue("Scan map did not get removed correctly", list.remove(scanMap));
     assertTrue("List should be empty after removal", list.getScanMaps().isEmpty());
   }
-  
+
 }

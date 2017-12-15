@@ -28,7 +28,7 @@ import org.edgexfoundry.domain.core.Reading;
 
 /**
  * Represents a request transaction between the device and device service.
- * 
+ *
  * @author Jim
  *
  */

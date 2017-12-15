@@ -73,21 +73,21 @@ public class ObjectStoreTest {
 
   @Test
   public void testPut() {
-    objectStore.put(device, operation, TEST_VALUE);
+    objectStore.put(device.getName(), operation, TEST_VALUE);
   }
 
   @Test
   public void testPutNull() {
-    objectStore.put(device, operation, null);
+    objectStore.put(device.getName(), operation, null);
   }
 
   @Test
   public void testGet() {
-    objectStore.get(device, operation);
+    objectStore.get(device.getName(), operation);
   }
 
   @Test
-  public void testGetResposnes() {
-    objectStore.getResponses(device, operation);
+  public void testGetResponses() {
+    objectStore.getResponses(device.getName(), operation);
   }
 }

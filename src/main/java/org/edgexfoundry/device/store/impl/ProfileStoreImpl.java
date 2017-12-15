@@ -20,8 +20,10 @@ package org.edgexfoundry.device.store.impl;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import org.edgexfoundry.controller.DeviceProfileClient;
@@ -44,10 +46,9 @@ import org.edgexfoundry.support.logging.client.EdgeXLoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Repository;
 
-// TODO - jpw Tyler - what happens if a profile is removed. How does this get cleaned out??
 /**
  * Cache of value descriptors, command and objects based on whats in the DS profile
- * 
+ *
  * @author Jim White
  *
  */
@@ -62,28 +63,77 @@ public class ProfileStoreImpl implements ProfileStore {
 
   @Autowired
   private DeviceProfileClient deviceProfileClient;
-  
+
   @Autowired
   private ServiceObjectFactory serviceObjectFactory;
 
   private Map<String, ValueDescriptor> valueDescriptors = new HashMap<>();
 
-  // TODO - jpw - wow, make these simpler, separate objects
-  // map (key of device name) to cache of each device's resources keyed by resource name
-  // mapped to resource operations arrays keyed by get or put operation
-  private Map<String, Map<String, Map<String, List<ResourceOperation>>>> commands = new HashMap<>();
+  // map to list of each device's resources keyed by the composition of device,
+  // resource, and operation name
+  private Map<String, List<ResourceOperation>> commands = new HashMap<>();
 
-  // map (key of device name) to cache each device's profile objects by profile object key
-  private Map<String, Map<String, ServiceObject>> objects = new HashMap<>();
+  // map to each device's profile objects by the composition of device and profile object name
+  private Map<String, ServiceObject> objects = new HashMap<>();
 
   @Override
-  public Map<String, Map<String, Map<String, List<ResourceOperation>>>> getCommands() {
+  public Map<String, List<ResourceOperation>> getCommands() {
     return commands;
   }
 
+  private String buildCommandKey(String deviceName, String resourceName, String opName) {
+    return String.format("%S~%S~%S", deviceName, resourceName, opName);
+  }
+
   @Override
-  public Map<String, Map<String, ServiceObject>> getObjects() {
+  public List<ResourceOperation> getCommandList(String deviceName, String resourceName,
+      String opName) {
+    return commands.get(buildCommandKey(deviceName, resourceName, opName));
+  }
+
+  @Override
+  public void putCommandList(String deviceName, String resourceName, String opName,
+      List<ResourceOperation> operations) {
+    commands.put(buildCommandKey(deviceName, resourceName, opName), operations);
+  }
+
+  private void removeCommandLists(String deviceName) {
+    Set<String> commandListKeys = new HashSet<>();
+    for (String commandKey: commands.keySet()) {
+      if (commandKey.startsWith(deviceName + "~")) {
+        commandListKeys.add(commandKey);
+      }
+    }
+    commands.keySet().removeAll(commandListKeys);
+  }
+
+  @Override
+  public Map<String, ServiceObject> getObjects() {
     return objects;
+  }
+
+  private String buildObjectKey(String deviceName, String objectName) {
+    return String.format("%S~%S", deviceName, objectName);
+  }
+
+  @Override
+  public ServiceObject getServiceObject(String deviceName, String objectName) {
+    return objects.get(buildObjectKey(deviceName, objectName));
+  }
+
+  @Override
+  public void putServiceObject(String deviceName, String objectName, ServiceObject object) {
+    objects.put(buildObjectKey(deviceName, objectName), object);
+  }
+
+  private void removeServiceObjects(String deviceName) {
+    Set<String> deviceObjectKeys = new HashSet<>();
+    for (String objectKey: objects.keySet()) {
+      if (objectKey.startsWith(deviceName + "~")) {
+        deviceObjectKeys.add(objectKey);
+      }
+    }
+    objects.keySet().removeAll(deviceObjectKeys);
   }
 
   @Override
@@ -101,17 +151,8 @@ public class ProfileStoreImpl implements ProfileStore {
     if (completeProfile(device)) {
       updateValueDescriptors();
       List<String> usedDescriptors = retrieveUsedDescriptors(device);
-
-      Map<String, Map<String, List<ResourceOperation>>> deviceOperations = new HashMap<>();
-      List<ResourceOperation> ops = new ArrayList<>();
-      retreiveOperations(device, deviceOperations, ops);
-
-      Map<String, ServiceObject> deviceObjects = new HashMap<>();
-      buildDeviceObjectsMap(device, deviceObjects, deviceOperations, ops);
-
-      objects.put(device.getName(), deviceObjects);
-      commands.put(device.getName(), deviceOperations);
-
+      List<ResourceOperation> ops = retrieveOperations(device);
+      ops = buildDeviceObjectsMap(device, ops);
       collectValueDescriptors(device, ops, usedDescriptors);
     } else {
       logger.error(
@@ -127,34 +168,51 @@ public class ProfileStoreImpl implements ProfileStore {
 
   @Override
   public void removeDevice(Device device) {
-    objects.remove(device.getName());
-    commands.remove(device.getName());
+    removeServiceObjects(device.getName());
+    removeCommandLists(device.getName());
+  }
+
+  private ValueDescriptor buildDescriptor(String name, DeviceObject object) {
+    PropertyValue value = object.getProperties().getValue();
+    Units units = object.getProperties().getUnits();
+
+    String minimum = value.getMinimum();
+    String maximum = value.getMaximum();
+    IoTType type = IoTType.valueOf(value.getType().substring(0, 1));
+    String uomLabel = units.getDefaultValue();
+    String defaultValue = value.getDefaultValue();
+    String formatString = "%s";
+    String[] labels = null;
+    String description = object.getDescription();
+
+    ValueDescriptor descriptor = new ValueDescriptor(name, minimum, maximum, type, uomLabel,
+        defaultValue, formatString, labels, description);
+
+    return descriptor;
   }
 
   private ValueDescriptor createDescriptor(String name, DeviceObject object) {
-    PropertyValue value = object.getProperties().getValue();
-    Units units = object.getProperties().getUnits();
-    ValueDescriptor descriptor = new ValueDescriptor(name, value.getMinimum(), value.getMaximum(),
-        IoTType.valueOf(value.getType().substring(0, 1)), units.getDefaultValue(),
-        value.getDefaultValue(), "%s", null, object.getDescription());
+    ValueDescriptor descriptor = buildDescriptor(name, object);
+
     try {
       descriptor.setId(valueDescriptorClient.add(descriptor));
     } catch (Exception e) {
       logger.error("Adding Value descriptor: " + descriptor.getName() + " failed with error "
           + e.getMessage());
     }
+
     return descriptor;
   }
 
   private void updateValueDescriptors() {
     List<ValueDescriptor> descriptors;
-    
+
     try {
       descriptors = valueDescriptorClient.valueDescriptors();
     } catch (Exception e) {
       descriptors = new ArrayList<>();
     }
-    
+
     for (ValueDescriptor valueDescriptor : descriptors) {
       valueDescriptors.put(valueDescriptor.getName(), valueDescriptor);
     }
@@ -162,11 +220,13 @@ public class ProfileStoreImpl implements ProfileStore {
 
   private List<String> retrieveUsedDescriptors(Device device) {
     List<String> usedDescriptors = new ArrayList<>();
+
     if (device.getProfile() != null && device.getProfile().getCommands() != null) {
       for (Command command : device.getProfile().getCommands()) {
         usedDescriptors.addAll(command.associatedValueDescriptors());
       }
     }
+
     return usedDescriptors;
   }
 
@@ -182,23 +242,24 @@ public class ProfileStoreImpl implements ProfileStore {
     return false;
   }
 
-  private void retreiveOperations(Device device,
-      Map<String, Map<String, List<ResourceOperation>>> deviceOperations,
-      List<ResourceOperation> ops) {
+  private List<ResourceOperation> retrieveOperations(Device device) {
+	List<ResourceOperation> ops = new ArrayList<>();
+
     if (device.getProfile() != null && device.getProfile().getResources() != null) {
       for (ProfileResource resource : device.getProfile().getResources()) {
-        Map<String, List<ResourceOperation>> operations = new HashMap<>();
-        operations.put("get", resource.getGet());
-        operations.put("set", resource.getSet());
-        deviceOperations.put(resource.getName().toLowerCase(), operations);
         if (resource.getGet() != null) {
+          putCommandList(device.getName(), resource.getName(), "get", resource.getGet());
           ops.addAll(resource.getGet());
         }
+
         if (resource.getSet() != null) {
+          putCommandList(device.getName(), resource.getName(), "set", resource.getSet());
           ops.addAll(resource.getSet());
         }
       }
     }
+
+    return ops;
   }
 
   private void collectValueDescriptors(Device device, List<ResourceOperation> ops,
@@ -224,44 +285,60 @@ public class ProfileStoreImpl implements ProfileStore {
     }
   }
 
-  // TODO - jpw - need to simplify
-  private void buildDeviceObjectsMap(Device device, Map<String, ServiceObject> deviceObjects,
-      Map<String, Map<String, List<ResourceOperation>>> deviceOperations,
-      List<ResourceOperation> ops) {
-    // put the device's profile objects in the objects map
-    // put the device's profile objects in the commands map if no resource exists
-    for (DeviceObject object : device.getProfile().getDeviceResources()) {
-      ServiceObject newServiceObject = serviceObjectFactory.createServiceObject(object);
+  // generate default operations from an object read/write state
+  private String getPermissionOp(char permission) {
+    switch(permission) {
+    case 'r':
+      return "get";
+    case 'w':
+      return "set";
+    default:
+      return "?";
+    }
+  }
 
-      PropertyValue value = object.getProperties().getValue();
+  private List<ResourceOperation> createResource(String objectName, String operation) {
+    ResourceOperation resource = new ResourceOperation(operation, objectName);
+    List<ResourceOperation> op = new ArrayList<>();
+    op.add(resource);
+    return op;
+  }
 
-      deviceObjects.put(object.getName(), newServiceObject);
+  // put the device's profile objects in the commands map if no resource exists
+  private List<ResourceOperation> createResourceMap(String deviceName, String objectName, String readWrite) {
+    List<ResourceOperation> ops = new ArrayList<>();
+
+    for (char permission: readWrite.toLowerCase().toCharArray()) {
+      String operation = getPermissionOp(permission);
+      List<ResourceOperation> opList = createResource(objectName, operation);
+      String commandKey = buildCommandKey(deviceName, objectName, operation);
 
       // if there is no resource defined for an object, create one based on the
       // RW parameters
-      if (!deviceOperations.containsKey(object.getName().toLowerCase())) {
-        String readWrite = value.getReadWrite();
-
-        Map<String, List<ResourceOperation>> operations = new HashMap<>();
-
-        if (readWrite.toLowerCase().contains("r")) {
-          ResourceOperation resource = new ResourceOperation("get", object.getName());
-          List<ResourceOperation> getOp = new ArrayList<>();
-          getOp.add(resource);
-          operations.put(resource.getOperation().toLowerCase(), getOp);
-          ops.add(resource);
-        }
-
-        if (readWrite.toLowerCase().contains("w")) {
-          ResourceOperation resource = new ResourceOperation("set", object.getName());
-          List<ResourceOperation> setOp = new ArrayList<>();
-          setOp.add(resource);
-          operations.put(resource.getOperation().toLowerCase(), setOp);
-          ops.add(resource);
-        }
-
-        deviceOperations.put(object.getName().toLowerCase(), operations);
+      if(!opList.isEmpty() && !commands.containsKey(commandKey)) {
+        ops.addAll(opList);
+        putCommandList(deviceName, objectName, operation, opList);
       }
     }
+
+    return ops;
+  }
+
+  private List<ResourceOperation> buildDeviceObjectsMap(Device device,
+      List<ResourceOperation> ops) {
+
+    String deviceName = device.getName();
+
+    // put the device's profile objects in the objects map
+    for (DeviceObject object : device.getProfile().getDeviceResources()) {
+      String objectName = object.getName();
+      ServiceObject newServiceObject = serviceObjectFactory.createServiceObject(object);
+      putServiceObject(deviceName, objectName, newServiceObject);
+
+      String readWrite = object.getProperties().getValue().getReadWrite();
+      ops.addAll(createResourceMap(deviceName, objectName, readWrite));
+    }
+
+    return ops;
   }
 }

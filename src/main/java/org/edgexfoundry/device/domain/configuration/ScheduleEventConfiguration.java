@@ -24,10 +24,10 @@ import org.springframework.stereotype.Component;
 /**
  * Object representing the schedule event(s) configuration as determined by configuration settings
  * or default values.
- * 
+ *
  * The configuration allows or more than one schedule event by providing comma separated list for
  * each of the properties below.
- * 
+ *
  * @author Jim
  *
  */

@@ -28,9 +28,18 @@ import org.edgexfoundry.domain.meta.ResourceOperation;
 
 public interface ProfileStore {
 
-  Map<String, Map<String, Map<String, List<ResourceOperation>>>> getCommands();
+  Map<String, List<ResourceOperation>> getCommands();
 
-  Map<String, Map<String, ServiceObject>> getObjects();
+  List<ResourceOperation> getCommandList(String deviceName, String resourceName, String opName);
+
+  void putCommandList(String deviceName, String resourceName, String opName,
+      List<ResourceOperation> operations);
+
+  Map<String, ServiceObject> getObjects();
+
+  ServiceObject getServiceObject(String deviceName, String objectName);
+
+  void putServiceObject(String deviceName, String objectName, ServiceObject object);
 
   List<ValueDescriptor> getValueDescriptors();
 

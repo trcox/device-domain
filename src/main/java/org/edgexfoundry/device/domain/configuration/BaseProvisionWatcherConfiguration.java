@@ -26,7 +26,7 @@ import org.springframework.beans.factory.annotation.Value;
 
 /**
  * Represents a basic provision watcher configuration.
- * 
+ *
  * @author Jim
  *
  */
