@@ -22,8 +22,8 @@ import java.util.Map;
 
 public interface CommandHandler {
 
-  Map<String, String> getResponse(String deviceId, String cmd, String arguments);
+  Map<String, String> getResponse(String deviceId, String cmd, String arguments, String string);
 
-  Map<String, String> getResponses(String cmd, String arguments);
+  Map<String, String> getResponses(String cmd, String arguments, String string);
 
 }

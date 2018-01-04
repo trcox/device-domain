@@ -36,6 +36,7 @@ public class ServiceObject extends DeviceObject {
     this.setTag(object.getTag());
     this.setDescription(object.getDescription());
     this.setProperties(object.getProperties());
+    this.setAttributes(object.getAttributes());
   }
 
 }

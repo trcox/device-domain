@@ -26,11 +26,13 @@ import java.util.stream.Collectors;
 
 import org.edgexfoundry.controller.AddressableClient;
 import org.edgexfoundry.controller.DeviceClient;
+import org.edgexfoundry.controller.DeviceProfileClient;
 import org.edgexfoundry.device.store.DeviceStore;
 import org.edgexfoundry.device.store.ProfileStore;
 import org.edgexfoundry.domain.meta.Addressable;
 import org.edgexfoundry.domain.meta.AdminState;
 import org.edgexfoundry.domain.meta.Device;
+import org.edgexfoundry.domain.meta.DeviceProfile;
 import org.edgexfoundry.domain.meta.OperatingState;
 import org.edgexfoundry.exception.controller.NotFoundException;
 import org.edgexfoundry.service.handler.ServiceHandler;
@@ -43,14 +45,17 @@ import org.springframework.stereotype.Repository;
 @Repository
 public class DeviceStoreImpl implements DeviceStore {
 
-  private static final EdgeXLogger logger =
-      EdgeXLoggerFactory.getEdgeXLogger(DeviceStoreImpl.class);
+  private final EdgeXLogger logger =
+      EdgeXLoggerFactory.getEdgeXLogger(this.getClass());
 
   @Autowired
   private DeviceClient deviceClient;
 
   @Autowired
   private AddressableClient addressableClient;
+  
+  @Autowired
+  private DeviceProfileClient profileClient;
 
   @Autowired
   private ProfileStore profileStore;
@@ -59,18 +64,19 @@ public class DeviceStoreImpl implements DeviceStore {
   private String serviceName;
 
   // cache for devices
-  private Map<String, Device> deviceCache = new HashMap<>();
+  private Map<String, Device> deviceCache;
 
   @Override
   public Map<String, Device> initialize(String deviceServiceId, ServiceHandler handler) {
     List<Device> metaDevices = deviceClient.devicesForService(deviceServiceId);
     deviceCache = new HashMap<>();
     for (Device device : metaDevices) {
-      deviceClient.updateOpState(device.getId(), OperatingState.DISABLED.name());
+      device.setOperatingState(OperatingState.DISABLED);
       add(device, handler);
     }
-
+    
     logger.info("Device service has " + deviceCache.size() + " devices.");
+    handler.initialize();
     return getDevices();
   }
 
@@ -88,17 +94,11 @@ public class DeviceStoreImpl implements DeviceStore {
 
   @Override
   public boolean add(String deviceId, ServiceHandler handler) {
-    Device device = deviceClient.device(deviceId);
-    return add(device, handler);
+    return update(deviceId, handler);
   }
 
   @Override
   public boolean add(Device device, ServiceHandler handler) {
-    if (deviceCache.containsKey(device.getName())) {
-      deviceCache.remove(device.getName());
-      profileStore.removeDevice(device);
-    }
-
     logger.info("Adding managed device:  " + device.getName());
     Device metaDevice = addDeviceToMetaData(device);
 
@@ -114,8 +114,12 @@ public class DeviceStoreImpl implements DeviceStore {
   public boolean update(String deviceId, ServiceHandler handler) {
     Device device = deviceClient.device(deviceId);
     Device localDevice = getDeviceById(deviceId);
-    if (device != null && localDevice != null && compare(device, localDevice)) {
-      return true;
+    if (device != null && localDevice != null) {
+      synchronized (deviceCache.get(device.getName())) {
+        if (compare(device,localDevice)) {
+          return true;
+        }
+      }
     }
 
     return add(device, handler);
@@ -129,35 +133,19 @@ public class DeviceStoreImpl implements DeviceStore {
 
   @Override
   public Device getDevice(String deviceName) {
-    if (deviceCache != null) {
-      return deviceCache.get(deviceName);
-    } else {
-      logger.error("Device store cache is null, not returning any devices");
-      return null;
-    }
+    return deviceCache.get(deviceName);
   }
 
   @Override
   public Device getDeviceById(String deviceId) {
-    if (deviceCache != null) {
-      return deviceCache.values().stream().filter(device -> device.getId().equals(deviceId))
-          .findAny().orElse(null);
-    }
-    logger.error("Device store cache is null, not returning any devices");
-    return null;
+    return deviceCache.values().stream().filter(device -> device.getId().equals(deviceId))
+        .findAny().orElse(null);
   }
 
   @Override
   public List<Device> getMetaDevices() {
     List<Device> metaDevices;
     metaDevices = deviceClient.devicesForServiceByName(serviceName);
-    for (Device metaDevice : metaDevices) {
-      Device device = deviceCache.get(metaDevice.getName());
-
-      if (device != null) {
-        device.setOperatingState(metaDevice.getOperatingState());
-      }
-    }
     return metaDevices;
   }
 
@@ -197,49 +185,67 @@ public class DeviceStoreImpl implements DeviceStore {
   }
 
   private Device addDeviceToMetaData(Device device) {
-    Addressable addressable = null;
-    try {
-      addressableClient.addressableForName(device.getAddressable().getName());
-    } catch (javax.ws.rs.NotFoundException e) {
-      addressable = device.getAddressable();
-      addressable.setOrigin(System.currentTimeMillis());
-      logger.info("Creating new Addressable Object with name: " + addressable.getName()
-          + ", Address:" + addressable);
-      String addressableId = addressableClient.add(addressable);
-      addressable.setId(addressableId);
-      device.setAddressable(addressable);
+    synchronized (deviceCache) {
+      deviceCache.put(device.getName(), device);
     }
-
-    Device d = null;
-    try {
-      d = deviceClient.deviceForName(device.getName());
-      device.setId(d.getId());
-      if (!device.getOperatingState().equals(d.getOperatingState())) {
-        deviceClient.updateOpState(device.getId(), device.getOperatingState().name());
-      }
-    } catch (javax.ws.rs.NotFoundException e) {
-      logger.info("Adding Device to Metadata:" + device.getName());
+    
+    synchronized(deviceCache.get(device.getName())) {
+      Addressable addressable = null;
       try {
-        device.setId(deviceClient.add(device));
-      } catch (Exception f) {
-        logger.error("Could not add new device " + device.getName() + " to metadata with error "
-            + e.getMessage());
-        return null;
+        addressableClient.addressableForName(device.getAddressable().getName());
+      } catch (javax.ws.rs.NotFoundException e) {
+        addressable = device.getAddressable();
+        addressable.setOrigin(System.currentTimeMillis());
+        logger.info("Creating new Addressable Object with name: "
+            + addressable.getName() + ", Address:" + addressable);
+        String addressableId = addressableClient.add(addressable);
+        addressable.setId(addressableId);
+        device.setAddressable(addressable);
+        synchronized(deviceCache) {
+          deviceCache.put(device.getName(), device);
+        }
+      }
+  
+      Device d = null;
+      try {
+        d = deviceClient.deviceForName(device.getName());
+        device.setId(d.getId());
+      } catch (javax.ws.rs.NotFoundException e) {
+        logger.info("Adding Device to Metadata:" + device.getName());
+        try {
+          device.setId(deviceClient.add(device));
+          synchronized(deviceCache) {
+            deviceCache.put(device.getName(), device);
+          }
+        } catch (Exception f) {
+          logger.error("Could not add new device " + device.getName()
+              + " to metadata with error " + e.getMessage());
+          return null;
+        }
+      }
+      
+      profileStore.addDevice(device);
+      
+      try {
+        if (d != null && !device.getOperatingState().equals(d.getOperatingState())) {
+          deviceClient.updateOpState(device.getId(), device.getOperatingState().name());
+        }
+      } catch (javax.ws.rs.NotFoundException e) {
+        logger.error("Could not update operating state for device " + device.getName());
       }
     }
-
-    profileStore.addDevice(device);
-    deviceCache.put(device.getName(), device);
+    
     return device;
   }
 
   private boolean remove(Device device, ServiceHandler handler) {
-    logger.debug("Removing managed device:  " + device.getName());
-    if (deviceCache.containsKey(device.getName())) {
-      deviceCache.remove(device.getName());
-      handler.disconnectDevice(device);
-      deviceClient.updateOpState(device.getId(), OperatingState.DISABLED.name());
-      profileStore.removeDevice(device);
+    logger.info("Removing managed device:  " + device.getName());
+    synchronized(deviceCache) {
+      if (deviceCache.containsKey(device.getName())) {
+        deviceCache.remove(device.getName());
+        deviceClient.updateOpState(device.getId(), OperatingState.DISABLED.name());
+        new Thread(() -> handler.disconnectDevice(device)).start();
+      }
     }
     return true;
   }
@@ -251,5 +257,26 @@ public class DeviceStoreImpl implements DeviceStore {
         && Arrays.equals(a.getLabels(), b.getLabels()) && a.getLocation().equals(b.getLocation())
         && a.getName().equals(b.getName()) && a.getOperatingState().equals(b.getOperatingState())
         && a.getProfile().equals(b.getProfile()) && a.getService().equals(b.getService());
+  }
+
+  @Override
+  public boolean updateProfile(String profileId, ServiceHandler handler) {
+    DeviceProfile profile;
+    try {
+      profile = profileClient.deviceProfile(profileId);
+    } catch (Exception e) {
+      // No such profile exists to update
+      return true;
+    }
+
+    boolean success = true;
+    for (Device device: deviceCache.entrySet().stream().map(d -> d.getValue())
+        .filter(d -> profile.getName().equals(d.getProfile().getName()))
+        .collect(Collectors.toList())) {
+      // update all devices that use the profile
+      device.setProfile(profile);
+      success &= update(device.getId(), handler);
+    }
+    return success;
   }
 }

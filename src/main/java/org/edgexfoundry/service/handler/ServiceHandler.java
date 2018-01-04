@@ -18,6 +18,8 @@
 
 package org.edgexfoundry.service.handler;
 
+import java.util.Map;
+
 import org.edgexfoundry.domain.meta.Device;
 
 public interface ServiceHandler {
@@ -29,5 +31,9 @@ public interface ServiceHandler {
   void disconnectDevice(Device device);
 
   void scan();
+
+  boolean commandExists(Device device, String cmd, String operation);
+
+  Map<String, String> executeCommand(Device device, String cmd, String arguments, String method);
 
 }

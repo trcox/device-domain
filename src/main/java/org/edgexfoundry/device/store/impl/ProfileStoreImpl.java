@@ -55,8 +55,8 @@ import org.springframework.stereotype.Repository;
 @Repository
 public class ProfileStoreImpl implements ProfileStore {
 
-  private static final EdgeXLogger logger =
-      EdgeXLoggerFactory.getEdgeXLogger(ProfileStoreImpl.class);
+  private final EdgeXLogger logger =
+      EdgeXLoggerFactory.getEdgeXLogger(this.getClass());
 
   @Autowired
   private ValueDescriptorClient valueDescriptorClient;
@@ -214,7 +214,9 @@ public class ProfileStoreImpl implements ProfileStore {
     }
 
     for (ValueDescriptor valueDescriptor : descriptors) {
-      valueDescriptors.put(valueDescriptor.getName(), valueDescriptor);
+      synchronized(valueDescriptors) {
+        valueDescriptors.put(valueDescriptor.getName(), valueDescriptor);
+      }
     }
   }
 
@@ -281,7 +283,9 @@ public class ProfileStoreImpl implements ProfileStore {
         descriptor = createDescriptor(op.getParameter(), object);
       }
 
-      valueDescriptors.put(descriptor.getName(),descriptor);
+      synchronized(valueDescriptors) {
+        valueDescriptors.put(descriptor.getName(),descriptor);
+      }
     }
   }
 

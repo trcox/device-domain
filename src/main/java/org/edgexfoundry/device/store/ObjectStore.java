@@ -27,7 +27,7 @@ import com.google.gson.JsonObject;
 
 public interface ObjectStore {
 
-  void put(String deviceName, ResourceOperation operation, String value);
+  List<Reading> put(String deviceName, ResourceOperation operation, String value);
 
   String get(String deviceName, String object);
 

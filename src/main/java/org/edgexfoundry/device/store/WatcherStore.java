@@ -46,4 +46,6 @@ public interface WatcherStore {
 
   List<ProvisionWatcher> getWatcherByProfileName(String profileName);
 
+  boolean updateProfile(String profileId);
+
 }

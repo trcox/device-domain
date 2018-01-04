@@ -28,7 +28,9 @@ import org.edgexfoundry.device.domain.ServiceObject;
 import org.edgexfoundry.device.store.ObjectStore;
 import org.edgexfoundry.device.store.ProfileStore;
 import org.edgexfoundry.domain.core.Reading;
+import org.edgexfoundry.domain.meta.PropertyValue;
 import org.edgexfoundry.domain.meta.ResourceOperation;
+import org.edgexfoundry.service.transform.ObjectTransform;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Repository;
@@ -43,6 +45,9 @@ public class ObjectStoreImpl implements ObjectStore {
 
   @Autowired
   private ProfileStore profileStore;
+  
+  @Autowired
+  private ObjectTransform transform;
 
   // map to each device's value cache by composition of device and object name
   private Map<String, List<String>> valueCache = new HashMap<>();
@@ -87,39 +92,82 @@ public class ObjectStoreImpl implements ObjectStore {
    * @param value
    */
   @Override
-  public void put(String deviceName, ResourceOperation operation, String value) {
-    if (value == null || value.equals("") || value.equals("{}")) {
-      return;
-    }
-
+  public List<Reading> put(String deviceName, ResourceOperation operation, String value) {
+    
     List<ServiceObject> objectsList = createObjectsList(operation, deviceName);
-    List<Reading> readings = new ArrayList<>();
+    List<Reading> readings = createReadings(deviceName, operation, value, objectsList);
 
-    for (ServiceObject obj : objectsList) {
-      String objectName = obj.getName();
-      readings.add(buildReading(deviceName, objectName, value));
-
-      synchronized (valueCache) {
-        List<String> valueList = getValue(deviceName, objectName);
-        if (valueList == null) {
-          valueList = new ArrayList<String>();
-        }
-
-        valueList.add(0, value);
-
-        if (valueList.size() > cacheSize) {
-          valueList.remove(cacheSize - 1);
-        }
-
-        putValue(deviceName, objectName, valueList);
-      }
-    }
-
-    String operationId = generateOperationId(operation, deviceName);
+    String operationId = objectsList.stream().map(o -> o.getName())
+        .collect(Collectors.toList()).toString();
 
     synchronized (readingCache) {
-      putReadings(deviceName, operationId, readings);
+      putReadings(deviceName,operationId,readings);
     }
+    
+    return readings;
+  }
+  
+  public List<Reading> noPut(String deviceName, ResourceOperation operation, String value) {
+    List<ServiceObject> objectsList = createObjectsList(operation, deviceName);
+    List<Reading> readings = createReadings(deviceName, operation, value, objectsList);
+    
+    return readings;
+  }
+  
+  private List<Reading> createReadings(String deviceName, ResourceOperation operation, String value,
+      List<ServiceObject> objectsList) {
+    if (value == null || value.equals("") || value.equals("{}")) {
+      return new ArrayList<>();
+    }
+    
+    List<Reading> readings = new ArrayList<>();
+
+    for (ServiceObject obj: objectsList) {
+      Reading reading = processObject(obj, value, deviceName, operation);
+      readings.add(reading);
+    }
+    
+    return readings;
+  }
+  
+  private Reading processObject(ServiceObject obj, String value, String deviceName,
+      ResourceOperation operation) {
+    String objectName = obj.getName();
+    String result = transformResult(value, obj, deviceName, operation);
+
+    Reading reading = buildReading(objectName, result, deviceName);
+    
+    synchronized (valueCache) {
+      List<String> valueList = getValue(deviceName, objectName);
+      if (valueList == null) {
+        valueList = new ArrayList<String>();
+      }
+
+      valueList.add(0, value);
+
+      if (valueList.size() > cacheSize) {
+        valueList.remove(cacheSize - 1);
+      }
+
+      putValue(deviceName, objectName, valueList);
+    }
+    
+    return reading;
+  }
+  
+  private String transformResult(String result, ServiceObject object,
+      String deviceName, ResourceOperation operation) {
+    PropertyValue propValue = object.getProperties().getValue();
+
+    String transformResult = transform.transform(propValue, result);
+
+    Map<String, String> mappings = operation.getMappings();
+
+    if (mappings != null && mappings.containsKey(transformResult)) {
+      transformResult = mappings.get(transformResult);
+    }
+
+    return transformResult;
   }
 
   @Override

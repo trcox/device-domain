@@ -30,6 +30,7 @@ import org.edgexfoundry.controller.DeviceServiceClient;
 import org.edgexfoundry.controller.ProvisionWatcherClient;
 import org.edgexfoundry.device.domain.configuration.BaseProvisionWatcherConfiguration;
 import org.edgexfoundry.device.store.WatcherStore;
+import org.edgexfoundry.domain.meta.DeviceProfile;
 import org.edgexfoundry.domain.meta.DeviceService;
 import org.edgexfoundry.domain.meta.ProvisionWatcher;
 import org.edgexfoundry.support.logging.client.EdgeXLogger;
@@ -44,8 +45,8 @@ import org.springframework.stereotype.Repository;
 @Repository
 public class WatcherStoreImpl implements WatcherStore {
 
-  private static final EdgeXLogger logger =
-      EdgeXLoggerFactory.getEdgeXLogger(WatcherStoreImpl.class);
+  private final EdgeXLogger logger =
+      EdgeXLoggerFactory.getEdgeXLogger(this.getClass());
 
   @Autowired
   private ProvisionWatcherClient provisionClient;
@@ -195,5 +196,27 @@ public class WatcherStoreImpl implements WatcherStore {
       }
     }
     return false;
+  }
+  
+  @Override
+  public boolean updateProfile(String profileId) {
+    DeviceProfile profile;
+    try {
+      profile = profileClient.deviceProfile(profileId);
+    } catch (Exception e) {
+      // No such profile exists to update
+      return true;
+    }
+
+    boolean success = true;
+    for (ProvisionWatcher watcher: watcherCache.values().stream()
+        .filter(w -> profile.getName().equals(w.getProfile().getName()))
+        .collect(Collectors.toList())) {
+
+      // update all devices that use the profile
+      watcher.setProfile(profile);
+      success &= update(watcher);
+    }
+    return success;
   }
 }

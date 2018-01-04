@@ -51,4 +51,6 @@ public interface DeviceStore {
   List<Device> getDeviceByProfileName(String profileName);
 
   boolean isDeviceLocked(String deviceId);
+  
+  boolean updateProfile(String profileId, ServiceHandler handler);
 }
